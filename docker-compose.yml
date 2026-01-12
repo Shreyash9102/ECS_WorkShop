@@ -1,0 +1,71 @@
+# Docker Compose for BlinkIt Clone - Full Stack
+# Runs: Backend (Node.js), Frontend (React), and MongoDB
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: blinkit-mongodb
+    environment:
+      MONGO_INITDB_DATABASE: blinkit_clone_db
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./server/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - blinkit-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API (Node.js + Express)
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: blinkit-backend
+    environment:
+      # MongoDB connection (using service name for DNS resolution)
+      MONGODB_URI: mongodb://mongodb:27017/blinkit_clone_db
+      FRONTEND_URL: http://localhost:3000
+      PORT: 8080
+      # JWT Secrets (change in production!)
+      SECRET_KEY_ACCESS_TOKEN: ${SECRET_KEY_ACCESS_TOKEN:-dev_access_secret_workshop}
+      SECRET_KEY_REFRESH_TOKEN: ${SECRET_KEY_REFRESH_TOKEN:-dev_refresh_secret_workshop}
+    ports:
+      - "8080:8080"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - blinkit-network
+    restart: unless-stopped
+
+  # Frontend (React + Nginx)
+  frontend:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: blinkit-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - blinkit-network
+    restart: unless-stopped
+    # Enable these for development with live reload (instead of Docker build)
+    # volumes:
+    #   - ./client/src:/app/src
+    # command: npm run dev -- --host
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  blinkit-network:
+    driver: bridge
