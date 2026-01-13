@@ -77,35 +77,6 @@ resource "aws_ecs_service" "mongodb" {
   task_definition = aws_ecs_task_definition.mongodb.arn
   desired_count   = 1
   
-  # No load balancer for database - internal access only
-  
-  # Register with Service Discovery (Cloud Map) which integrates with Route53
-  service_registries {
-    registry_arn = aws_service_discovery_service.mongodb.arn
-    container_name = "mongodb"
-    container_port = 27017
-  }
+  # No load balancer or service discovery for database - using manual Route53 record
 }
 
-# -------------------------------------------------------------------------------------------------
-# Service Discovery Service
-# -------------------------------------------------------------------------------------------------
-
-resource "aws_service_discovery_service" "mongodb" {
-  name = "mongodb"
-
-  dns_config {
-    namespace_id = aws_service_discovery_private_dns_namespace.internal.id
-    
-    dns_records {
-      ttl  = 10
-      type = "A" # A record pointing to EC2 instance private IP
-    }
-    
-    routing_policy = "MULTIVALUE"
-  }
-  
-  health_check_custom_config {
-    failure_threshold = 1
-  }
-}

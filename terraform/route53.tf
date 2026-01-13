@@ -6,16 +6,21 @@ resource "aws_route53_zone" "internal" {
     vpc_id = local.vpc_id
   }
   
-  # Private zone for internal communication
   comment = "Internal DNS for Blinkit services"
 }
 
-# The A records for services will be managed via the ECS Service Discovery setup
-# But we can define the namespace here if we were using AWS Cloud Map directly
-# For this setup simpler setup, we'll use CloudMap namespace resources which integrate with Route53
+# Fetch the EC2 instance private IP
+data "aws_instances" "ecs_nodes" {
+  instance_tags = {
+    "aws:autoscaling:groupName" = aws_autoscaling_group.ecs_asg.name
+  }
+}
 
-resource "aws_service_discovery_private_dns_namespace" "internal" {
-  name        = "blinkit.internal"
-  description = "Service discovery namespace for Blinkit internal services"
-  vpc         = local.vpc_id
+# Manual A record entry for MongoDB
+resource "aws_route53_record" "mongodb" {
+  zone_id = aws_route53_zone.internal.zone_id
+  name    = "mongodb.blinkit.internal"
+  type    = "A"
+  ttl     = "60"
+  records = [data.aws_instances.ecs_nodes.private_ips[0]]
 }
