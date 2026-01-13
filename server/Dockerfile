@@ -3,12 +3,11 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy all files first (including entrypoint.sh)
+# Copy all files
 COPY . .
 
 # Install dependencies
-RUN npm ci --only=production && \
-    chmod +x /app/entrypoint.sh
+RUN npm ci --only=production
 
 # Expose port
 EXPOSE 8080
@@ -17,5 +16,5 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://localhost:8080/', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"
 
-# Start with entrypoint script
-ENTRYPOINT ["/app/entrypoint.sh"]
+# Start Node.js directly (bootstrap function runs in server/index.js)
+CMD ["node", "index.js"]
